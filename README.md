@@ -5,6 +5,10 @@ recognition, Gemini as the brain (with tool-calling for PC actions, web/document
 lookups and real computation), and local Japanese TTS for replies, with English
 subtitles.
 
+This is a personal project — an AI assistant that blends Jarvis (Iron Man) with the Great Sage /
+Raphael from *That Time I Got Reincarnated as a Slime*: Jarvis' role as an ever-present assistant
+wired into your PC, spoken in the Great Sage's flat, analytical, third-person-status-report manner.
+
 ## See it in action
 | | |
 |---|---|
@@ -19,7 +23,8 @@ captured while she was actually up and answering.
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
 - A free Gemini API key: https://aistudio.google.com/apikey
 - [VOICEVOX](https://voicevox.hiroshiba.jp/) running locally (optional; Raphael speaks Japanese
-  with the "NurseRobo Type T" voice. Without it, replies fall back to the Windows English voice.)
+  with the "NurseRobo Type T" voice. Without it, replies fall back to the Windows English voice.
+  Swap this for whichever TTS you prefer — see **Customizing the voice** below for options.)
 
 ## Setup
 1. Copy this `RaphaelAssistant` folder to your PC.
@@ -333,6 +338,15 @@ For a noticeably more expressive/precise voice (closer to a real character
 voice), swap `System.Speech.Synthesis` for a neural TTS service — Azure
 Neural TTS or ElevenLabs both support SSML for fine pitch/rate control, at
 the cost of needing another API key and internet access for that step.
+
+VOICEVOX (the Japanese voice) is just as swappable — `VoicevoxClient.cs` talks to its local HTTP API
+on `127.0.0.1:50021`, and several other free local engines are drop-in compatible since they're built
+on the same VOICEVOX engine (same API, different voice banks): **SHAREVOX**, **COEIROINK**,
+**LMROID**, **ITVOICE**. Point `VoicevoxClient.cs` at whichever one you run instead, and pick a
+different `speaker` ID for its voice. For something further from VOICEVOX entirely — **VOICEPEAK**,
+Azure Neural TTS, ElevenLabs, or any other TTS with an HTTP API — replace the calls in
+`VoicevoxClient.cs` with requests to that engine instead; everything upstream of it (persona, subtitle
+text, orb sync) stays the same regardless of which engine actually speaks the line.
 
 ## Extending it
 Add more tools by:
