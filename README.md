@@ -8,8 +8,8 @@ subtitles.
 ## See it in action
 | | |
 |---|---|
-| ![Raphael's orb, speaking](docs/screenshots/orb-speaking.png) | ![Raphael's orb, idle](docs/screenshots/orb-idle.png) |
-| ![A live subtitle from a real session](docs/screenshots/subtitle-greeting.png) | |
+| ![Raphael's orb, speaking](docs/screenshots/orb-speaking.jpg) | ![Raphael's orb, idle](docs/screenshots/orb-idle.jpg) |
+| ![A live subtitle from a real session](docs/screenshots/subtitle-greeting.jpg) | |
 
 Screenshots from a real running session: the orb overlay (idle and mid-speech) and a live subtitle,
 captured while she was actually up and answering.
