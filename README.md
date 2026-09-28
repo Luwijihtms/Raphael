@@ -204,6 +204,19 @@ the box (they reuse the .NET SDK, JDK and Node.js this PC already had installed)
 She has no way to delete anything else on the PC; a path outside those two folders, including one that tries to climb out with
 `..`, is refused outright.
 
+## Remembering things about you
+"Remember that I'm allergic to peanuts" saves a short, self-contained fact to persistent memory
+(`%LOCALAPPDATA%\Raphael\memory.txt`), available in every future session, not just this one — separate
+from the routines/personality learning above, which she infers herself. "Forget my allergy" (or any
+distinctive word from the fact) deletes it. She decides on her own when a fact is worth saving; she
+isn't asked to confirm every time.
+
+## Notes
+"Write down my shopping list: milk, eggs, bread" (or "jot this down...", "note that...") saves the exact
+text to a new file under `Documents\Raphael Notes` and opens it in Notepad. If you ask her to compose
+something (a list, a short message) rather than dictate it verbatim, she writes the full text herself.
+Existing notes are never overwritten — a repeated name gets a timestamp appended instead.
+
 ## Timers
 "Set a timer for 2 minutes called pasta" starts a countdown. When it ends she announces it out loud (orb and subtitle too),
 and messages your phone if you asked from Telegram. Ask "how long is left?" or "cancel the pasta timer". Timers are saved in
@@ -293,8 +306,10 @@ left behind. Starting Raphael any other way stops the standby copy (only one pro
   this part). Replies are spoken with `System.Speech.Synthesis`, tuned
   (slower rate, neutral voice) for a flatter, more analytical delivery.
 - `GeminiClient.cs` — sends what you said to Gemini along with a system
-  prompt that gives it the Raphael persona, plus a small set of **tools** it
-  can call: `open_app`, `open_url`, `run_command`, `get_time`. Replies come
+  prompt that gives it the Raphael persona, plus the full set of **tools**
+  it can call — everything described above, from `open_app`/`open_url`/
+  `run_command`/`get_time` up through Gmail, calendar, Spotify, timers,
+  memory, notes, code writing, screen reading and the rest. Replies come
   back as a Japanese line (spoken) and an English line (subtitle).
 - `VoicevoxClient.cs` — speaks the Japanese line through the local VOICEVOX engine.
 - `CommandHandler.cs` — actually executes whatever tool Gemini decides to
