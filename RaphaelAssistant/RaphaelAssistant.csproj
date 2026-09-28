@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The 10.0.19041 suffix unlocks the Windows media-control API (pause/skip what Chrome or Spotify is playing) -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Raphael</AssemblyName>
+    <RootNamespace>Raphael</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Gives access to the UI Automation client (System.Windows.Automation), used to read Chrome's tab titles -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Offline, built-in Windows speech recognition + synthesis -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />  </ItemGroup>
+
+</Project>
