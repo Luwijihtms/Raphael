@@ -133,7 +133,7 @@ public sealed class ChatWindow
             Controls.Add(grid);
 
             grid.Controls.Add(BuildReplies(), 0, 0);
-            grid.Controls.Add(BuildPicture(picture), 1, 0);
+            grid.Controls.Add(BuildPicture(picture, orb), 1, 0);
             grid.Controls.Add(BuildInput(), 0, 1);
             grid.Controls.Add(BuildOrb(orb), 1, 1);
 
@@ -206,15 +206,12 @@ public sealed class ChatWindow
             return card;
         }
 
-        private Panel BuildPicture(Image? picture)
+        private Panel BuildPicture(Image? picture, OrbOverlay orb)
         {
             var card = NewCard();
             PaintEdge(card);
             card.BackColor = Color.Black;
-            card.Controls.Add(new PictureBox
-            {
-                Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black, Image = picture
-            });
+            card.Controls.Add(new PortraitPanel(picture, orb) { Dock = DockStyle.Fill });
             return card;
         }
 
@@ -422,6 +419,163 @@ public sealed class ChatWindow
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Her picture, made to feel present without changing her face (she is expressionless in the anime): it breathes very
+    /// slowly, a glow around the edge swells with her voice (teal at rest, turning gold as she speaks), and sparkles and
+    /// runes drift upwards, faster while she speaks.
+    /// </summary>
+    private sealed class PortraitPanel : Control
+    {
+        private sealed class Mote { public float X, Y, Speed, Phase, Size; public char Rune; public bool Gold; }
+
+        private static readonly Color Teal = Color.FromArgb(90, 205, 225);
+        private static readonly Color Gold = Color.FromArgb(255, 205, 80);
+
+        private readonly Image? _image;
+        private readonly OrbOverlay _orb;
+        private readonly System.Windows.Forms.Timer _timer = new() { Interval = 40 };
+        private readonly DateTime _t0 = DateTime.Now;
+        private readonly Random _rng = new(7);
+        private readonly List<Mote> _motes = new();
+        private readonly Font _runeFont = new("Segoe UI Historic", 14f, FontStyle.Bold, GraphicsUnit.Pixel);
+        private Bitmap? _fitted;
+        private DateTime _last = DateTime.Now;
+        private float _level, _glow = 0.12f;
+
+        public PortraitPanel(Image? image, OrbOverlay orb)
+        {
+            _image = image;
+            _orb = orb;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            BackColor = Color.Black;
+
+            for (var i = 0; i < 34; i++)
+            {
+                var rune = i % 6 == 0;   // a few of the motes are runes rather than dots
+                _motes.Add(new Mote
+                {
+                    X = (float)_rng.NextDouble(), Y = (float)_rng.NextDouble(),
+                    Speed = 0.015f + (float)_rng.NextDouble() * 0.035f, Phase = (float)(_rng.NextDouble() * Math.PI * 2),
+                    Size = 1.5f + (float)_rng.NextDouble() * 2.2f, Gold = i % 2 == 0,
+                    Rune = rune ? (char)_rng.Next(0x16A0, 0x16EB) : '\0'
+                });
+            }
+
+            _timer.Tick += (_, _) => Tick();
+            _timer.Start();
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            _fitted?.Dispose();
+            _fitted = null;   // rebuilt at the new size when next drawn
+        }
+
+        private void Tick()
+        {
+            var form = FindForm();
+            if (!Visible || form == null || form.WindowState == FormWindowState.Minimized) return;
+
+            var now = DateTime.Now;
+            var dt = (float)Math.Min(0.1, (now - _last).TotalSeconds);
+            _last = now;
+
+            var (target, speaking, listening, thinking) = _orb.Sample();
+            var active = speaking || listening || thinking;
+            _level = target > _level ? target : _level * 0.80f + target * 0.20f;
+
+            var glowTarget = speaking ? 0.35f + 0.65f * _level : active ? 0.3f : 0.12f;
+            _glow += (glowTarget - _glow) * 0.15f;
+
+            foreach (var m in _motes)
+            {
+                m.Y -= m.Speed * dt * (1f + 4f * _level + (active ? 0.6f : 0f));
+                if (m.Y < -0.05f)
+                {
+                    m.Y = 1.05f;
+                    m.X = (float)_rng.NextDouble();
+                }
+            }
+
+            _timer.Interval = active ? 40 : 66;
+            Invalidate();
+        }
+
+        private void BuildFitted()
+        {
+            if (_image == null || Width < 20 || Height < 20) return;
+            var scale = Math.Min((float)Width / _image.Width, (float)Height / _image.Height);
+            var w = Math.Max(1, (int)(_image.Width * scale));
+            var h = Math.Max(1, (int)(_image.Height * scale));
+            _fitted = new Bitmap(w, h, PixelFormat.Format32bppPArgb);
+            using var g = Graphics.FromImage(_fitted);
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(_image, 0, 0, w, h);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(Color.Black);
+            var t = (float)(DateTime.Now - _t0).TotalSeconds;
+
+            if (_fitted == null) BuildFitted();
+            if (_fitted != null)
+            {
+                // Breathing: a slow swell of about 1.5%, a little more with her voice. Never smaller than the fitted picture.
+                var breathe = 1f + 0.015f * (0.5f + 0.5f * MathF.Sin(t * 0.9f)) + 0.02f * _level;
+                var w = _fitted.Width * breathe;
+                var h = _fitted.Height * breathe;
+                g.InterpolationMode = InterpolationMode.Bilinear;
+                g.DrawImage(_fitted, (Width - w) / 2f, (Height - h) / 2f, w, h);
+            }
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+            // Sparkles and runes drifting up.
+            foreach (var m in _motes)
+            {
+                var twinkle = 0.5f + 0.5f * MathF.Sin(t * 2.2f + m.Phase);
+                var fade = Math.Clamp(Math.Min(m.Y, 1f - m.Y) / 0.12f, 0f, 1f);   // fade in and out near the top and bottom
+                var alpha = (int)Math.Clamp((25 + 140 * twinkle) * (0.45f + 0.55f * _level + 0.2f) * fade, 0, 255);
+                if (alpha < 4) continue;
+                var x = (m.X + MathF.Sin(t * 0.7f + m.Phase) * 0.02f) * Width;
+                var y = m.Y * Height;
+                var color = Color.FromArgb(alpha, m.Gold ? Gold : Teal);
+
+                if (m.Rune != '\0')
+                {
+                    using var brush = new SolidBrush(color);
+                    g.DrawString(m.Rune.ToString(), _runeFont, brush, x, y);
+                }
+                else
+                {
+                    var size = m.Size * (1f + 0.5f * _level);
+                    using var brush = new SolidBrush(color);
+                    g.FillEllipse(brush, x - size, y - size, size * 2, size * 2);
+                }
+            }
+
+            // The edge glow: teal at rest, shifting to gold and swelling as she speaks.
+            var edge = Color.FromArgb(
+                (int)(Teal.R + (Gold.R - Teal.R) * _level), (int)(Teal.G + (Gold.G - Teal.G) * _level), (int)(Teal.B + (Gold.B - Teal.B) * _level));
+            for (var i = 0; i < 10; i++)
+            {
+                var a = (int)Math.Clamp(_glow * 75 * (1f - i / 10f), 0, 255);
+                using var pen = new Pen(Color.FromArgb(a, edge), 3f);
+                g.DrawRectangle(pen, i * 3, i * 3, Width - 1 - i * 6, Height - 1 - i * 6);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { _timer.Dispose(); _fitted?.Dispose(); _runeFont.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
 
     /// <summary>The orb, drawn into a panel instead of over the whole screen. Dimmer at rest, bright while she speaks.</summary>
     private sealed class OrbPanel : Control
