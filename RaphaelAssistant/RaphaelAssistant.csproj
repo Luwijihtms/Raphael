@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <!-- The 10.0.19041 suffix unlocks the Windows media-control API (pause/skip what Chrome or Spotify is playing) -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -9,6 +9,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Raphael</AssemblyName>
     <RootNamespace>Raphael</RootNamespace>
+    <!-- The icon of Raphael.exe itself (Explorer, shortcuts, the taskbar) -->
+    <ApplicationIcon>Assets\raphael.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,5 +21,10 @@
   <ItemGroup>
     <!-- Offline, built-in Windows speech recognition + synthesis -->
     <PackageReference Include="System.Speech" Version="8.0.0" />  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Her picture, shown in the top-right of the window -->
+    <EmbeddedResource Include="Assets/raphael.png" LogicalName="raphael.png" />
+  </ItemGroup>
 
 </Project>

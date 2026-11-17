@@ -19,6 +19,9 @@ public class VoiceService : IDisposable
     private readonly SubtitleOverlay _overlay = new();
     private readonly OrbOverlay _orb = new();
 
+    /// <summary>Her speaking state, which the orb in the chat window draws from.</summary>
+    internal OrbOverlay Orb => _orb;
+
     private static readonly TimeSpan CommandWindow = TimeSpan.FromSeconds(10);
 
     // What she says when called by name alone; picked at random so it isn't always the same.
@@ -212,7 +215,8 @@ public class VoiceService : IDisposable
         {
             if (string.IsNullOrWhiteSpace(english)) return;
             Console.WriteLine($"  [subtitle] {english}");
-            _overlay.Show(english);
+            ChatWindow.AddReply(japanese, english);
+            if (!ChatWindow.IsShowing) _overlay.Show(english); // the window already shows it while it is open
         }
 
         // With the Japanese voice, the subtitle appears when she starts speaking, not while the audio is still being made.

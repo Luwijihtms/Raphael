@@ -9,6 +9,15 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
+        UiMode.Decide(args); // the chat window by default; the console only for --console, --mic-test or piped input
+
+        // Only the window, with sample text (for looking at the layout; touches nothing else).
+        if (args.Contains("--ui-preview", StringComparer.OrdinalIgnoreCase))
+        {
+            await UiPreview.RunAsync();
+            return;
+        }
+
         if (args.Contains("--mic-test", StringComparer.OrdinalIgnoreCase))
         {
             MicTest.Run(WakeWords);
@@ -23,8 +32,12 @@ public static class Program
         }
         Standby.SignalStop(); // if a standby copy is watching the bot, it steps aside now
 
-        Console.OutputEncoding = System.Text.Encoding.UTF8; // so Japanese text prints correctly
-        Console.InputEncoding = System.Text.Encoding.UTF8;  // ...and is read correctly when input is piped in
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8; // so Japanese text prints correctly
+            Console.InputEncoding = System.Text.Encoding.UTF8;  // ...and is read correctly when input is piped in
+        }
+        catch { /* no console in window mode: nothing to set */ }
         SessionLog.Start();
         Console.WriteLine("=== Raphael — Desktop Assistant ===");
 
@@ -38,9 +51,9 @@ public static class Program
         var apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            Console.WriteLine("ERROR: Set the GEMINI_API_KEY environment variable first.");
-            Console.WriteLine("  Free key: https://aistudio.google.com/apikey");
-            Console.WriteLine("  setx GEMINI_API_KEY \"your-key-here\"   (then restart the terminal)");
+            UiMode.Report("ERROR: Set the GEMINI_API_KEY environment variable first.\n"
+                + "  Free key: https://aistudio.google.com/apikey\n"
+                + "  setx GEMINI_API_KEY \"your-key-here\"   (then start Raphael again)");
             return;
         }
 
@@ -49,6 +62,7 @@ public static class Program
         // Voice input is switched off for now. To turn it back on: setx RAPHAEL_MIC on (then restart).
         var micOn = string.Equals(Environment.GetEnvironmentVariable("RAPHAEL_MIC"), "on", StringComparison.OrdinalIgnoreCase);
         var voice = new VoiceService(micOn, WakeWords);
+        if (UiMode.Chat) ChatWindow.Start(voice.Orb, startMinimized: args.Contains("--startup", StringComparer.OrdinalIgnoreCase));
 
         // Timers ("set a timer for 2 minutes"): announced out loud, and on the phone if it was set from there.
         // Created now, before anything can ask for one; the phone link is filled in once Telegram is up.
@@ -153,7 +167,7 @@ public static class Program
         var powerOff = false;
         while (true)
         {
-            var read = Task.Run(Console.ReadLine);
+            var read = ChatWindow.ReadLineAsync(); // the window's typing box, or the console in classic mode
             if (await Task.WhenAny(read, ShutdownRequested.Task) != read) { powerOff = true; break; }
 
             var typed = (await read)?.TrimStart('﻿'); // piped input can start with an invisible byte-order mark
@@ -745,6 +759,8 @@ public static class Program
                 return $"{farewellJa}\n{farewellEn}";
             }
 
+            if (audio == null) ChatWindow.AddUser(text, "phone");
+
             var prepared = Prepare(text, audio, out var declinedReply);
             if (declinedReply != null)
             {
@@ -755,7 +771,7 @@ public static class Program
             voice.SetThinking(true);
             var raw = await RunAsync(llm, prepared, audio, audioMime, allowShell: false);
             var (heard, ja, en) = ParseBilingual(raw);
-            if (heard != null) Console.WriteLine($"[heard] {heard}");
+            if (heard != null) { Console.WriteLine($"[heard] {heard}"); ChatWindow.AddUser(heard, "phone"); }
             Console.WriteLine($"[Raphael] {ja}");
             var speech = voice.SayAsync(ja, en);
             if (ShutdownRequested.Task.IsCompleted) await speech; // she asked to power off: finish the goodbye first
@@ -794,7 +810,7 @@ public static class Program
             voice.SetThinking(true);
             var text = await RunAsync(llm, prepared, audio, "audio/wav", allowShell: true);
             var (heard, ja, en) = ParseBilingual(text);
-            if (heard != null) Console.WriteLine($"[heard] {heard}");
+            if (heard != null) { Console.WriteLine($"[heard] {heard}"); ChatWindow.AddUser(heard, "voice"); }
             Console.WriteLine($"[Raphael] {ja}");
             var speech = voice.SayAsync(ja, en);
             if (ShutdownRequested.Task.IsCompleted) await speech; // she asked to power off: finish the goodbye first

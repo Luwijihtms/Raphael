@@ -281,8 +281,22 @@ Saying or typing "power off" (or "Raphael, please power down") makes her say a s
 from the console, the microphone and the phone, and needs no Gemini call. Other wordings ("shut yourself down", "goodbye")
 go through a `power_off` tool. It closes Raphael only, never the computer. Typing `exit` closes her silently.
 
+## The window
+Raphael opens a window in four parts instead of a console:
+- **Top left:** what she says. English is the main line with the Japanese she speaks beneath it; the **English** and **日本語** boxes
+  above it hide either one. Lines that came from your voice or your phone are shown there too.
+- **Top right:** her picture (`RaphaelAssistant/Assets/raphael.png`, embedded in the exe; replace it to change it).
+- **Bottom left:** where you type. Enter sends, Shift+Enter starts a new line, Up/Down bring back earlier messages.
+- **Bottom right:** the orb. Dim at rest, brighter and spinning while she speaks, with the state ("Speaking", "Thinking…") shown beside "YOU".
+
+Closing the window ends Raphael (like closing the old console did); minimise it to keep her running. When Windows starts her
+(`--startup`) the window opens minimised. While the window is open the subtitle bar over the screen is not shown (it would only
+repeat it); minimise the window and the subtitle bar comes back.
+`Raphael.exe --console` (or `RAPHAEL_UI=classic`, or piping commands into her) gives the old look: a console, the big orb in the middle
+of the screen, and the subtitle bar. `Raphael.exe --ui-preview` opens just the window with sample text, to look at the layout.
+
 ## The orb (Raphael's magic circle)
-- It appears in the middle of the screen while she speaks, listens or thinks. `RAPHAEL_ORB=off` turns it off.
+- In the window it is drawn in the bottom-right panel. In classic mode it appears in the middle of the screen while she speaks, listens or thinks. `RAPHAEL_ORB=off` turns it off.
 - By default the window is large enough for the whole outer circle. `RAPHAEL_ORB_SIZE=800` uses a smaller window
   (same orb, lower CPU) that shows only the outer circle's corner arcs. Set with `setx` and restart.
 
