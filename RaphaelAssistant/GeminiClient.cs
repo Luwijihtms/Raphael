@@ -261,6 +261,150 @@ public class GeminiClient
                         ["required"] = new JsonArray { "content" }
                     }
                 },
+                new JsonObject
+                {
+                    ["name"] = "system_report",
+                    ["description"] = "Read real facts about this PC before answering any question about it (slow, full disk, crashes, internet, battery, updates, graphics). Topics: overview (OS, CPU, RAM, uptime, disks, battery), disks (free space and drive health), folders (what is taking disk space in the user's folders), network (adapter, ping, DNS, Wi-Fi), battery (charge and power plan), updates (pending Windows updates), crashes (crashes, hangs and unexpected shutdowns in the last 3 days), gpu (graphics card and driver). Read-only; some topics take up to a minute. Start with 'overview' when unsure, then dig into the topic that matters. Never guess about the PC when this can check.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["topic"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "overview", "disks", "folders", "network", "battery", "updates", "crashes", "gpu" } }
+                        },
+                        ["required"] = new JsonArray { "topic" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "pc_fix",
+                    ["description"] = "Tidy the PC. Actions: clean_temp (delete temp files older than a day), empty_recycle_bin, old_downloads (move downloads untouched for 90+ days to the Recycle Bin), flush_dns (fixes odd website or connection problems; runs at once). The first call of a deleting action only shows what it would remove: tell the user plainly, and only after they say yes call again with confirmed=true. Check the real numbers with system_report 'folders' or 'disks' first when the user asks to free space.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "clean_temp", "empty_recycle_bin", "old_downloads", "flush_dns" } },
+                            ["confirmed"] = new JsonObject { ["type"] = "boolean", ["description"] = "True only on the second call, after the user said yes" }
+                        },
+                        ["required"] = new JsonArray { "action" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "admin_action",
+                    ["description"] = "The few fixes that need administrator rights: restart_network (restart the active network adapters), restart_audio (no or crackling sound), restart_print_spooler (stuck printing), restart_windows_update (hung updates), repair_system_files (sfc /scannow, 10-20 minutes in a visible window). Windows shows its own Yes/No prompt on the screen, which the user must press. Two steps like end_process: the first call explains, you ask the user, and only after a yes call again with confirmed=true. Use only when a diagnosis points to it.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "restart_network", "restart_audio", "restart_print_spooler", "restart_windows_update", "repair_system_files" } },
+                            ["confirmed"] = new JsonObject { ["type"] = "boolean", ["description"] = "True only on the second call, after the user said yes" }
+                        },
+                        ["required"] = new JsonArray { "action" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "find_files",
+                    ["description"] = "Find files by name in the user's own folders (Documents, Desktop, Downloads, Pictures, Videos, Music). All words in 'query' must appear in the file name. Returns full paths, size and date. To read a found document use read_document; to open it use open_app with the path. Read-only.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["query"] = new JsonObject { ["type"] = "string", ["description"] = "Words from the file name, e.g. 'resume' or 'tax 2025'" },
+                            ["folder"] = new JsonObject { ["type"] = "string", ["description"] = "Optional: Documents, Desktop, Downloads, Pictures, Videos or Music" }
+                        },
+                        ["required"] = new JsonArray { "query" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "pc_setting",
+                    ["description"] = "Change a Windows setting: dark_mode (value on/off), brightness (0-100, laptops only), power_plan (balanced, high_performance or power_saver). Use when the user asks for it directly.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["setting"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "dark_mode", "brightness", "power_plan" } },
+                            ["value"] = new JsonObject { ["type"] = "string" }
+                        },
+                        ["required"] = new JsonArray { "setting", "value" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "list_processes",
+                    ["description"] = "List what is using the most CPU and memory right now, background programs included (about 2 seconds). Use it when the user says the PC is slow or asks what is using CPU/RAM, before suggesting anything to end. Read-only."
+                },
+                new JsonObject
+                {
+                    ["name"] = "list_startup",
+                    ["description"] = "List the programs that start with Windows and whether each is ON or off. Use it when the user asks what starts up with the PC or wants to speed up start-up. Read-only."
+                },
+                new JsonObject
+                {
+                    ["name"] = "end_process",
+                    ["description"] = "End running programs by their exact process name from list_processes (also background ones with no window). TWO STEPS: the first call only records the plan and returns instructions; you must then tell the user which programs and what they lose, and only after they say yes call again with confirmed=true and the same names. Never end more than the user agreed to, and never guess names. Windows, security software and Raphael are refused by the code.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["names"] = new JsonObject { ["type"] = "array", ["items"] = new JsonObject { ["type"] = "string" }, ["description"] = "Exact process names, e.g. 'Discord'" },
+                            ["confirmed"] = new JsonObject { ["type"] = "boolean", ["description"] = "True only on the second call, after the user said yes" }
+                        },
+                        ["required"] = new JsonArray { "names" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "startup_set",
+                    ["description"] = "Turn start-up programs off or back on (reversible; nothing is deleted). Use the names from list_startup. 'disable' is TWO STEPS like end_process: the first call records the plan, you ask the user, and only after a yes you call again with confirmed=true and the same names. 'enable' needs no confirmation and is only for when the user asks to turn something back on.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "disable", "enable" } },
+                            ["names"] = new JsonObject { ["type"] = "array", ["items"] = new JsonObject { ["type"] = "string" }, ["description"] = "Startup item names from list_startup" },
+                            ["confirmed"] = new JsonObject { ["type"] = "boolean", ["description"] = "True only on the second call of a disable, after the user said yes" }
+                        },
+                        ["required"] = new JsonArray { "action", "names" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "wordle_daily",
+                    ["description"] = "Turn on, turn off, or check a daily Telegram message with the Wordle answer. Use when the user asks to be updated/messaged with the Wordle answer every day at some time ('12 am' = '00:00'). Pass the time as 24-hour HH:mm; do not calculate anything else. It is sent while Raphael is running and also after she is powered off properly (power_off leaves a hidden standby copy that sends it), as long as the PC is on and awake.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray { "on", "off", "status" } },
+                            ["time"] = new JsonObject { ["type"] = "string", ["description"] = "24-hour HH:mm, e.g. 00:00 for 12 am (only for 'on')" }
+                        },
+                        ["required"] = new JsonArray { "action" }
+                    }
+                },
+                new JsonObject
+                {
+                    ["name"] = "send_telegram",
+                    ["description"] = "Send a Telegram message to the user's own phone (through the Raphael bot). Use only when the user asks to be messaged, or to send/forward something to their Telegram or phone. It can only reach the user, never other people. Put the exact text in 'message'; if asked to compose it (a summary, a list, a link), write the full text yourself.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["message"] = new JsonObject { ["type"] = "string", ["description"] = "The full text to send" }
+                        },
+                        ["required"] = new JsonArray { "message" }
+                    }
+                },
                 // No "parameters": Gemini rejects an object schema with empty properties.
                 new JsonObject
                 {
@@ -462,16 +606,17 @@ public class GeminiClient
                 new JsonObject
                 {
                     ["name"] = "set_timer",
-                    ["description"] = "Start a countdown timer or reminder. When it ends, Raphael announces it out loud (and messages the user's phone if the request came from the phone). Convert the duration to seconds ('2 minutes' = 120). For a clock time ('at 5 pm'), work out the seconds from the current time given in your instructions.",
+                    ["description"] = "Start a countdown timer or reminder. When it ends, Raphael announces it out loud (and messages the user's phone if the request came from the phone or 'telegram' is true). For a duration ('in 2 minutes') use 'seconds' (2 minutes = 120). For a clock time ('at 5 pm', 'at 1 am') do NOT calculate seconds yourself: pass 'at' and the code works out the delay.",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
-                            ["seconds"] = new JsonObject { ["type"] = "integer", ["description"] = "How many seconds from now the timer should go off" },
+                            ["seconds"] = new JsonObject { ["type"] = "integer", ["description"] = "How many seconds from now the timer should go off (for durations only)" },
+                            ["at"] = new JsonObject { ["type"] = "string", ["description"] = "Clock time to go off at, 24-hour 'HH:mm' (next time it occurs) or 'yyyy-MM-dd HH:mm' for a specific date. Use instead of seconds." },
+                            ["telegram"] = new JsonObject { ["type"] = "boolean", ["description"] = "True if the user asked to also be messaged on Telegram when it goes off" },
                             ["label"] = new JsonObject { ["type"] = "string", ["description"] = "What the timer is for, e.g. 'pasta' or 'call mum' (optional)" }
-                        },
-                        ["required"] = new JsonArray { "seconds" }
+                        }
                     }
                 },
                 // No "parameters": Gemini rejects an object schema with empty properties.

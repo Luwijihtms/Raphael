@@ -172,6 +172,26 @@ security settings or needs administrator rights. A scan someone cancels can stil
 (`nytimes.com/svc/wordle/v2/<date>.json`) and says it, spelled out. Optionally give another day ("yesterday's").
 "Today" is the date on this PC's clock, which matches when Wordle resets for you. It is an unofficial address the NYT could change.
 
+"Message me the Wordle answer every day at 12 am" turns on a daily Telegram message (needs the phone link below). It is saved in
+`%LOCALAPPDATA%\Raphael\wordle-daily.json`, and is sent while she runs and after a proper power-off (the hidden standby copy sends it);
+if she was closed another way, it is sent late when she next starts. The PC must be on.
+
+## Looking after the PC (read, tidy, fix)
+She answers questions about this PC from its real state, and can fix things. Reading is free; anything that deletes, ends or
+changes something asks you first (the tool only does it on a second call, after your "yes", for the same items).
+- **`system_report`** (overview, disks, folders, network, battery, updates, crashes, gpu): fixed read-only scripts.
+- **`list_processes`, `list_startup`**: what is using CPU and memory, and what starts with Windows.
+- **`end_process`, `startup_set`**: end a program by name, or turn a startup item off/on (reversible, the same switch as Task Manager's
+  Startup tab; she never turns one back on by herself). Windows, security software, Raphael and VOICEVOX are never ended.
+- **`pc_fix`**: `clean_temp`, `empty_recycle_bin`, `old_downloads` (to the Recycle Bin, 90+ days old), `flush_dns`.
+- **`admin_action`**: `restart_network`, `restart_audio`, `restart_print_spooler`, `restart_windows_update`, `repair_system_files`.
+  Raphael never runs elevated; each action starts its own fixed script and Windows shows its own Yes/No prompt.
+- **`find_files`** (by name, in your own folders), **`pc_setting`** (dark mode, brightness on laptops, power plan), **`send_telegram`** (a message to you).
+- In the background she may also point out a program hogging the CPU, memory nearly full, or no restart for 10+ days (within the daily limit).
+- From Telegram only the read tools work; ending, fixing, settings, file search and admin actions are refused.
+
+Timers also take a clock time ("at 1 am"; the code works out the delay) and a Telegram flag.
+
 ## Awareness of your coding projects
 She notices which project you're in, from the window title of a recognized editor (VS Code, Visual Studio, Rider/IntelliJ/
 PyCharm/CLion/WebStorm/GoLand) — never anything inside the window. "What's the status of ProjectRaphael?" (or just "check git

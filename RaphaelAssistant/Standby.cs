@@ -82,6 +82,10 @@ public static class Standby
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3), ct); // the copy that just closed may still be reading the bot
+
+            // The daily Wordle message must not depend on the full app being open. This loop stops with the standby copy
+            // (when she is woken or started, which then takes over).
+            DailyWordle.Start(text => Call("sendMessage", new JsonObject { ["chat_id"] = owner, ["text"] = text }), ct);
             long offset = 0;
 
             while (!ct.IsCancellationRequested)

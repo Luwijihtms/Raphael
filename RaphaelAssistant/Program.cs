@@ -73,6 +73,7 @@ public static class Program
         if (telegram != null && await telegram.StartAsync())
         {
             phone = text => telegram.SendToOwnerAsync(text);
+            Phone = phone;
             Console.WriteLine($"Telegram: connected as @{telegram.BotUsername}. Only your account can use it, and shell commands are disabled from the phone.");
         }
 
@@ -98,6 +99,7 @@ public static class Program
 
         // Start keeping time (and report timers that ran out while she was off).
         await Timers.StartAsync();
+        DailyWordle.Start();
 
         // Knows when you are busy (full-screen game or video, a call) so she doesn't talk over it, and when you come back
         // after a long absence. RAPHAEL_PRESENCE=off turns it off.
@@ -221,6 +223,9 @@ public static class Program
     // ---- timers ----------------------------------------------------------------------------------------------
 
     internal static TimerService Timers = null!;
+
+    /// <summary>Sends a Telegram message to the user's own chat; null while Telegram isn't connected.</summary>
+    internal static Func<string, Task>? Phone;
 
     /// <summary>A timer ended (or ran out while she was off): say so out loud, and message the phone if it was set from there.</summary>
     private static async Task AnnounceTimerAsync(TimerItem timer, bool missed, VoiceService voice, Func<string, Task>? phone)
@@ -381,6 +386,9 @@ public static class Program
             ProactiveWatcher.DiskRule(),
             ProactiveWatcher.MailRule(age => Mail?.Lingering(age) ?? Array.Empty<(MailInfo, TimeSpan)>()),
             ProactiveWatcher.DefenderRule(() => Scanner.StatusAsync()),
+            PcWatchRules.CpuHogRule(),
+            PcWatchRules.MemoryRule(),
+            PcWatchRules.UptimeRule(),
         };
         if (!string.Equals(Environment.GetEnvironmentVariable("RAPHAEL_HABITS"), "off", StringComparison.OrdinalIgnoreCase))
             rules.Add(ProactiveWatcher.HabitRule(userPresent: () => (Presence?.LastIdleSeconds ?? 0) < 600));

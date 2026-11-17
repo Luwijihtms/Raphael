@@ -57,10 +57,30 @@ public static class CommandHandler
                     call.Input?["path"]?.GetValue<string>(),
                     fromPhone: !allowShell),
                 "wordle_answer" => WordleLookup.AnswerAsync(call.Input?["date"]?.GetValue<string>()).GetAwaiter().GetResult(),
-                "set_timer" => Program.Timers.Set(
-                    (int)Math.Round(call.Input?["seconds"]?.GetValue<double>() ?? 0),
-                    call.Input?["label"]?.GetValue<string>(),
-                    fromPhone: !allowShell), // shell commands are only ever refused for requests that came from the phone
+                "set_timer" => SetTimer(call, fromPhone: !allowShell), // shell commands are only ever refused for requests that came from the phone
+                "system_report" => SystemReport.Run(call.Input?["topic"]?.GetValue<string>()),
+                "pc_fix" when !allowShell => "PC fixes are disabled for requests from the phone.",
+                "pc_fix" => SystemFix.Run(call.Input?["action"]?.GetValue<string>(), call.Input?["confirmed"] is JsonNode fc && fc.GetValue<bool>()),
+                "admin_action" when !allowShell => "Administrator actions are disabled for requests from the phone.",
+                "admin_action" => AdminActions.Run(call.Input?["action"]?.GetValue<string>(), call.Input?["confirmed"] is JsonNode ac && ac.GetValue<bool>()),
+                "find_files" when !allowShell => "File search is disabled for requests from the phone.",
+                "find_files" => PcSettings.FindFiles(call.Input?["query"]?.GetValue<string>(), call.Input?["folder"]?.GetValue<string>()),
+                "pc_setting" when !allowShell => "Changing PC settings is disabled for requests from the phone.",
+                "pc_setting" => PcSettings.Set(call.Input?["setting"]?.GetValue<string>(), call.Input?["value"]?.GetValue<string>()),
+                "list_processes" => PcManager.ListProcesses(),
+                "list_startup" => PcManager.ListStartup(),
+                "end_process" when !allowShell => "Ending processes is disabled for requests from the phone.",
+                "end_process" => PcManager.EndProcesses(Names(call), call.Input?["confirmed"] is JsonNode ec && ec.GetValue<bool>()),
+                "startup_set" when !allowShell && !string.Equals(call.Input?["action"]?.GetValue<string>(), "enable", StringComparison.OrdinalIgnoreCase)
+                    => "Turning startup items off is disabled for requests from the phone.",
+                "startup_set" => PcManager.SetStartup(
+                    Names(call),
+                    string.Equals(call.Input?["action"]?.GetValue<string>(), "enable", StringComparison.OrdinalIgnoreCase),
+                    call.Input?["confirmed"] is JsonNode sc && sc.GetValue<bool>()),
+                "wordle_daily" => DailyWordle.Control(
+                    call.Input?["action"]?.GetValue<string>(),
+                    call.Input?["time"]?.GetValue<string>()),
+                "send_telegram" => SendTelegram(call.Input?["message"]?.GetValue<string>() ?? ""),
                 "list_timers" => Program.Timers.List(),
                 "cancel_timer" => Program.Timers.Cancel(call.Input?["label"]?.GetValue<string>()),
                 "power_off" => PowerOff(),
@@ -126,6 +146,43 @@ public static class CommandHandler
         File.WriteAllText(path, content, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         Process.Start(new ProcessStartInfo("notepad.exe", $"\"{path}\"") { UseShellExecute = true });
         return $"Saved the note as {Path.GetFileName(path)} in Documents\\Raphael Notes and opened it in Notepad.";
+    }
+
+    /// <summary>Clock times are resolved here, not by the model: it once turned "1 am" at 22:50 into 13 minutes.</summary>
+    private static string SetTimer(ToolCall call, bool fromPhone)
+    {
+        var label = call.Input?["label"]?.GetValue<string>();
+        var telegram = call.Input?["telegram"] is JsonNode t && t.GetValue<bool>();
+        var at = call.Input?["at"]?.GetValue<string>()?.Trim();
+
+        double seconds = call.Input?["seconds"]?.GetValue<double>() ?? 0;
+        if (!string.IsNullOrEmpty(at))
+        {
+            var now = DateTime.Now;
+            DateTime target;
+            if (DateTime.TryParseExact(at, "yyyy-MM-dd HH:mm", null, System.Globalization.DateTimeStyles.None, out var full))
+                target = full;
+            else if (TimeSpan.TryParseExact(at, @"h\:mm", null, out var tod) || TimeSpan.TryParseExact(at, @"hh\:mm", null, out tod))
+            {
+                target = now.Date + tod;
+                if (target <= now) target = target.AddDays(1);
+            }
+            else return $"Could not read the time '{at}'. Use HH:mm or yyyy-MM-dd HH:mm.";
+            seconds = Math.Ceiling((target - now).TotalSeconds);
+        }
+
+        return Program.Timers.Set((int)Math.Round(seconds), label, fromPhone || telegram);
+    }
+
+    private static List<string> Names(ToolCall call) =>
+        call.Input?["names"] is JsonArray a ? a.Select(n => n?.GetValue<string>() ?? "").ToList() : new List<string>();
+
+    private static string SendTelegram(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return "No message text was given.";
+        if (Program.Phone == null) return "Telegram is not connected, so nothing was sent.";
+        Program.Phone(message.Trim()).GetAwaiter().GetResult();
+        return "Message sent to the user's Telegram.";
     }
 
     /// <summary>Read-only git status for a named project, or whatever the user is currently coding in.</summary>
